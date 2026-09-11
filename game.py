@@ -1,5 +1,6 @@
 pip install pygame
-import pygame, random
+import pygame
+import random
 
 pygame.init()
 W,H,CELL=600,400,20
