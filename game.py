@@ -1,13 +1,14 @@
 import random
 import time
 import streamlit as st
+import streamlit.components.v1 as components
 
 # ============================================================
 # CONFIGURACIÓN
 # ============================================================
 
 st.set_page_config(
-    page_title="Snake - Streamlit",
+    page_title="Snake",
     page_icon="🐍",
     layout="centered",
 )
@@ -20,6 +21,17 @@ MIN_SPEED = 0.055
 # ============================================================
 # ESTADO DEL JUEGO
 # ============================================================
+
+def create_food(snake):
+    available = [
+        (x, y)
+        for x in range(BOARD_SIZE)
+        for y in range(BOARD_SIZE)
+        if (x, y) not in snake
+    ]
+
+    return random.choice(available) if available else None
+
 
 def reset_game():
     center = BOARD_SIZE // 2
@@ -41,30 +53,19 @@ def reset_game():
     st.session_state.last_update = time.time()
 
 
-def create_food(snake):
-    available = [
-        (x, y)
-        for x in range(BOARD_SIZE)
-        for y in range(BOARD_SIZE)
-        if (x, y) not in snake
-    ]
-
-    return random.choice(available) if available else None
-
-
 def initialize_state():
     if "snake" not in st.session_state:
         reset_game()
 
 
 # ============================================================
-# LÓGICA DEL JUEGO
+# CONTROLES
 # ============================================================
 
 def change_direction(new_direction):
     current = st.session_state.direction
 
-    # Evitar que la serpiente pueda darse vuelta sobre sí misma.
+    # Evita girar directamente en sentido contrario.
     if (
         new_direction[0] == -current[0]
         and new_direction[1] == -current[1]
@@ -73,6 +74,10 @@ def change_direction(new_direction):
 
     st.session_state.next_direction = new_direction
 
+
+# ============================================================
+# LÓGICA DEL JUEGO
+# ============================================================
 
 def update_game():
     if (
@@ -99,11 +104,9 @@ def update_game():
         st.session_state.game_over = True
         return
 
-    # Determinar si comemos la comida.
     eating = new_head == st.session_state.food
 
-    # Si no está comiendo, la cola se mueve y no cuenta
-    # como una colisión.
+    # La cola se mueve si no estamos comiendo.
     body_to_check = (
         st.session_state.snake
         if eating
@@ -115,7 +118,6 @@ def update_game():
         st.session_state.game_over = True
         return
 
-    # Agregar nueva cabeza.
     new_snake = [new_head] + st.session_state.snake
 
     if eating:
@@ -128,16 +130,12 @@ def update_game():
 
 
 def get_speed():
-    # Cuanto más puntaje, más rápido.
-    speed = INITIAL_SPEED - (
-        st.session_state.score * 0.005
-    )
-
+    speed = INITIAL_SPEED - (st.session_state.score * 0.005)
     return max(MIN_SPEED, speed)
 
 
 # ============================================================
-# RENDER DEL TABLERO
+# TABLERO
 # ============================================================
 
 def render_board():
@@ -174,6 +172,69 @@ def render_board():
         </div>
         """,
         unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# JAVASCRIPT - CONTROLES WASD
+# ============================================================
+
+def keyboard_controls():
+    components.html(
+        """
+        <script>
+        document.addEventListener("keydown", function(event) {
+
+            const key = event.key.toLowerCase();
+
+            const allowedKeys = ["w", "a", "s", "d",
+                                 "arrowup", "arrowdown",
+                                 "arrowleft", "arrowright"];
+
+            if (!allowedKeys.includes(key)) {
+                return;
+            }
+
+            event.preventDefault();
+
+            /*
+             * Streamlit escucha los cambios de los botones.
+             * Buscamos los botones de dirección por su texto.
+             */
+            const buttons = window.parent.document.querySelectorAll(
+                'button'
+            );
+
+            let target = null;
+
+            if (key === "w" || key === "arrowup") {
+                target = "⬆️";
+            }
+
+            if (key === "a" || key === "arrowleft") {
+                target = "⬅️";
+            }
+
+            if (key === "s" || key === "arrowdown") {
+                target = "⬇️";
+            }
+
+            if (key === "d" || key === "arrowright") {
+                target = "➡️";
+            }
+
+            if (target) {
+                for (const button of buttons) {
+                    if (button.innerText.includes(target)) {
+                        button.click();
+                        break;
+                    }
+                }
+            }
+        });
+        </script>
+        """,
+        height=0,
     )
 
 
@@ -246,6 +307,9 @@ st.markdown(
 
 initialize_state()
 
+# Activar controles de teclado.
+keyboard_controls()
+
 
 # ============================================================
 # INTERFAZ
@@ -261,9 +325,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ------------------------------------------------------------
+
+# ============================================================
 # CONTROLES
-# ------------------------------------------------------------
+# ============================================================
 
 col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -289,9 +354,9 @@ with col5:
         change_direction((0, 1))
 
 
-# ------------------------------------------------------------
+# ============================================================
 # BOTONES PRINCIPALES
-# ------------------------------------------------------------
+# ============================================================
 
 col1, col2 = st.columns(2)
 
@@ -313,9 +378,9 @@ with col2:
         reset_game()
 
 
-# ------------------------------------------------------------
+# ============================================================
 # INFORMACIÓN
-# ------------------------------------------------------------
+# ============================================================
 
 st.markdown(
     f'<div class="score">🏆 Puntaje: {st.session_state.score}</div>',
@@ -335,16 +400,16 @@ elif not st.session_state.started:
     st.info("Presioná ▶️ Iniciar para comenzar")
 
 
-# ------------------------------------------------------------
+# ============================================================
 # TABLERO
-# ------------------------------------------------------------
+# ============================================================
 
 render_board()
 
 st.markdown(
     """
     <div class="instructions">
-        🎮 Usá los botones para controlar la serpiente.<br>
+        ⌨️ <b>WASD</b> o las flechas para moverte.<br>
         🍎 Comé las manzanas para crecer y sumar puntos.<br>
         💥 No choques contra las paredes ni contra tu propio cuerpo.
     </div>
