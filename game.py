@@ -1,3 +1,4 @@
+pip install pygame
 import pygame, random
 
 pygame.init()
